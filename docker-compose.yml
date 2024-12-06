@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+      - yarn-cache:/usr/local/share/.cache/yarn
+
+volumes:
+  yarn-cache:

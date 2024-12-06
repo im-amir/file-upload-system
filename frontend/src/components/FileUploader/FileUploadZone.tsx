@@ -20,7 +20,9 @@ const DropzoneContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const FileUploadZone: React.FC<FileUploadZoneProps> = ({ onFileSelect }) => {
+export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
+  onFileSelect,
+}) => {
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       const csvFiles = acceptedFiles.filter(
@@ -66,5 +68,3 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({ onFileSelect }) => {
     </DropzoneContainer>
   );
 };
-
-export default FileUploadZone;

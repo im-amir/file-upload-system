@@ -6,7 +6,7 @@ interface BaseButtonProps extends ButtonProps {
   color?: "primary" | "secondary" | "error" | "success";
 }
 
-const BaseButton: React.FC<BaseButtonProps> = ({
+export const BaseButton: React.FC<BaseButtonProps> = ({
   children,
   variant = "contained",
   color = "primary",
@@ -23,5 +23,3 @@ const BaseButton: React.FC<BaseButtonProps> = ({
     </Button>
   );
 };
-
-export default BaseButton;

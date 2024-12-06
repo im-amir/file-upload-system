@@ -21,7 +21,7 @@ import {
 import { UploadedFile } from "../../types/file";
 import { useFileManager } from "../../hooks/useFileManager";
 
-const FileList: React.FC = () => {
+export const FileList: React.FC = () => {
   const { files, downloadFile, previewFile } = useFileManager();
   const [previewContent, setPreviewContent] = useState<string | null>(null);
 
@@ -85,5 +85,3 @@ const FileList: React.FC = () => {
     </>
   );
 };
-
-export default FileList;

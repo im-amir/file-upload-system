@@ -20,7 +20,7 @@ interface FileUploadListProps {
   onRemoveFile: (fileId: string) => void;
 }
 
-const FileUploadList: React.FC<FileUploadListProps> = ({
+export const FileUploadList: React.FC<FileUploadListProps> = ({
   files,
   onRemoveFile,
 }) => {
@@ -84,5 +84,3 @@ const FileUploadList: React.FC<FileUploadListProps> = ({
     </List>
   );
 };
-
-export default FileUploadList;

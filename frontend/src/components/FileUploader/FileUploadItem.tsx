@@ -19,7 +19,7 @@ interface FileUploadItemProps {
   onRemoveFile: (fileId: string) => void;
 }
 
-const FileUploadItem: React.FC<FileUploadItemProps> = ({
+export const FileUploadItem: React.FC<FileUploadItemProps> = ({
   file,
   onRemoveFile,
 }) => {
@@ -75,5 +75,3 @@ const FileUploadItem: React.FC<FileUploadItemProps> = ({
     </ListItem>
   );
 };
-
-export default FileUploadItem;

@@ -1,11 +1,10 @@
-import styles from "./page.module.css";
-import { Container, Typography, Paper, Grid } from "@mui/material";
-import FileUploadZone from "../../components/FileUploader/FileUploadZone";
-import FileUploadList from "../../components/FileUploader/FileUploadList";
-import BaseButton from "../../components/base/BaseButton";
+"use client";
+
+import { Container, Typography, Paper, Grid, Box } from "@mui/material";
 import { useState } from "react";
-import { useFileUpload } from "../../hooks/useFileUpload";
-import { FileUploadService } from "../../services/fileUploadService";
+import { FileUploadService } from "@/services/fileUploadService";
+import { useFileUpload } from "@/hooks";
+import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
 
 export default function Home() {
   const { files, addFiles, removeFile, updateFileProgress } = useFileUpload();
@@ -28,7 +27,7 @@ export default function Home() {
     }
   };
   return (
-    <div className={styles.page}>
+    <Box p={4}>
       <Container maxWidth="md" sx={{ mt: 4 }}>
         <Paper elevation={3} sx={{ p: 3 }}>
           <Typography variant="h4" gutterBottom align="center">
@@ -58,6 +57,6 @@ export default function Home() {
           </Grid>
         </Paper>
       </Container>
-    </div>
+    </Box>
   );
 }
