@@ -1,0 +1,32 @@
+# Frontend
+/frontend/node_modules
+/frontend/.next
+/frontend/build
+/frontend/.DS_Store
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+/frontend/.env*
+/frontend/*.tsbuildinfo
+/frontend/next-env.d.ts
+
+# Backend
+/backend/__pycache__
+/backend/*/__pycache__
+/backend/*/*/__pycache__
+/backend/venv/
+/backend/.env
+/backend/.pytest_cache
+/backend/logs
+/backend/*.pyc
+/backend/node_modules
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

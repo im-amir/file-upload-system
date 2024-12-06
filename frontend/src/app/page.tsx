@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FileUploadService } from "@/services/fileUploadService";
 import { useFileUpload } from "@/hooks";
 import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
+import { FileList } from "@/components/FileManager/FileList";
 
 export default function Home() {
   const { files, addFiles, removeFile, updateFileProgress } = useFileUpload();
@@ -56,6 +57,7 @@ export default function Home() {
             </Grid>
           </Grid>
         </Paper>
+        <FileList />
       </Container>
     </Box>
   );

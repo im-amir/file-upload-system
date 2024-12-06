@@ -25,6 +25,7 @@ export const FileList: React.FC = () => {
   const { files, downloadFile, previewFile } = useFileManager();
   const [previewContent, setPreviewContent] = useState<string | null>(null);
 
+  console.log("files", files);
   const handleDownload = (file: UploadedFile) => {
     downloadFile(file);
   };

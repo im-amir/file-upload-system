@@ -23,7 +23,9 @@ export class FileManagerService {
 
   static async downloadFile(fileUrl: string, fileName: string): Promise<void> {
     try {
-      const response = await axios.get(fileUrl, {
+      // Use backend proxy for download
+      const response = await axios.get(`${this.BASE_URL}/download`, {
+        params: { url: fileUrl },
         responseType: "blob",
       });
 
@@ -36,12 +38,14 @@ export class FileManagerService {
       link.remove();
     } catch (error) {
       console.error("File download error:", error);
+      throw error;
     }
   }
 
   static async previewFile(fileUrl: string): Promise<string | null> {
     try {
-      const response = await axios.get(fileUrl, {
+      const response = await axios.get(`${this.BASE_URL}/preview`, {
+        params: { url: fileUrl },
         responseType: "text",
       });
       return response.data;
