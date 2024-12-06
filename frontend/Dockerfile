@@ -4,14 +4,12 @@ WORKDIR /app
 
 RUN apk add --no-cache yarn
 
-COPY package.json yarn.lock ./
-
-RUN yarn install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm install
 
 COPY . .
 
-RUN yarn build
-
 EXPOSE 3000
 
-CMD ["yarn", "start"]
+# Use next dev for hot reloading
+CMD ["npm", "run", "dev"]

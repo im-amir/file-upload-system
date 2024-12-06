@@ -7,13 +7,23 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
     volumes:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
-      - yarn-cache:/usr/local/share/.cache/yarn
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000/api
+      - CHOKIDAR_USEPOLLING=true # Enable polling for file changes
+    command: npm run dev
 
-volumes:
-  yarn-cache:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1 # Ensure real-time logging
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
