@@ -13,7 +13,12 @@ const BaseButton: React.FC<BaseButtonProps> = ({
   ...props
 }) => {
   return (
-    <Button variant={variant} color={color} {...props}>
+    <Button
+      data-testid="upload-button"
+      variant={variant}
+      color={color}
+      {...props}
+    >
       {children}
     </Button>
   );

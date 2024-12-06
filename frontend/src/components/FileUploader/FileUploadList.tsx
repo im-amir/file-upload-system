@@ -40,6 +40,7 @@ const FileUploadList: React.FC<FileUploadListProps> = ({
       {files.map((file) => (
         <ListItem
           key={file.id}
+          data-testid="file-upload-item"
           divider
           secondaryAction={
             <IconButton

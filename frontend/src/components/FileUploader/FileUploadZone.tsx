@@ -46,6 +46,7 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({ onFileSelect }) => {
 
   return (
     <DropzoneContainer
+      data-testid="file-upload-zone"
       {...getRootProps()}
       sx={{
         borderColor: isDragActive ? "primary.main" : "grey.400",
