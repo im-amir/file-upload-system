@@ -12,17 +12,23 @@ import {
   Cancel as CancelIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
+  Pause as PauseIcon,
+  PlayArrow as ResumeIcon,
 } from "@mui/icons-material";
 import { FileUpload, FileUploadStatus } from "../../types/file";
 
 interface FileUploadListProps {
   files: FileUpload[];
   onRemoveFile: (fileId: string) => void;
+  onPauseFile: (fileId: string) => void;
+  onResumeFile: (fileId: string) => void;
 }
 
 export const FileUploadList: React.FC<FileUploadListProps> = ({
   files,
   onRemoveFile,
+  onPauseFile,
+  onResumeFile,
 }) => {
   const getStatusIcon = (status: FileUploadStatus) => {
     switch (status) {
@@ -34,6 +40,7 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
         return null;
     }
   };
+  console.log(files);
 
   return (
     <List>
@@ -43,13 +50,33 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
           data-testid="file-upload-item"
           divider
           secondaryAction={
-            <IconButton
-              edge="end"
-              onClick={() => onRemoveFile(file.id)}
-              color="error"
-            >
-              <CancelIcon />
-            </IconButton>
+            <Box display="flex" alignItems="center">
+              {file.status === FileUploadStatus.UPLOADING && (
+                <IconButton
+                  edge="end"
+                  onClick={() => onPauseFile(file.id)}
+                  color="primary"
+                >
+                  <PauseIcon />
+                </IconButton>
+              )}
+              {file.status === FileUploadStatus.PAUSED && (
+                <IconButton
+                  edge="end"
+                  onClick={() => onResumeFile(file.id)}
+                  color="primary"
+                >
+                  <ResumeIcon />
+                </IconButton>
+              )}
+              <IconButton
+                edge="end"
+                onClick={() => onRemoveFile(file.id)}
+                color="error"
+              >
+                <CancelIcon />
+              </IconButton>
+            </Box>
           }
         >
           <Box sx={{ width: "100%", display: "flex", alignItems: "center" }}>
