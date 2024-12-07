@@ -25,7 +25,7 @@ export default function Home() {
     addFiles(selectedFiles);
   };
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     if (files.length === 0) return;
 
     setIsUploading(true);
@@ -110,7 +110,10 @@ export default function Home() {
             </Grid>
           </Grid>
         </Paper>
-        <FileList />
+
+        <Box mt={3}>
+          <FileList />
+        </Box>
       </Container>
     </Box>
   );

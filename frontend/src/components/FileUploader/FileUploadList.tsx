@@ -40,7 +40,6 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
         return null;
     }
   };
-  console.log(files);
 
   return (
     <List>

@@ -182,15 +182,50 @@ export class FileManagerService {
     }
   }
 
-  static async previewFile(fileUrl: string): Promise<string | null> {
+  static async previewFile(
+    fileUrl: string,
+    skip: number = 0,
+    limit: number = 100
+  ): Promise<{
+    headers: string[];
+    rows: any[];
+    total_rows?: number;
+  } | null> {
     try {
+      // Create cancel token for timeout handling
+      const source = axios.CancelToken.source();
+      const timeoutId = setTimeout(() => {
+        source.cancel("Request timeout");
+      }, 60000); // 60 seconds timeout
+
       const response = await axios.get(`${this.BASE_URL}/preview`, {
-        params: { url: fileUrl },
-        responseType: "text",
+        params: {
+          url: fileUrl,
+          skip,
+          limit,
+        },
+        cancelToken: source.token,
+        timeout: 60000,
       });
-      return response.data;
+
+      // Clear timeout on successful response
+      clearTimeout(timeoutId);
+
+      // Return formatted preview data
+      return {
+        headers: response.data.headers,
+        rows: response.data.rows.map((row: any, index: number) => ({
+          id: skip + index + 1,
+          ...row,
+        })),
+        total_rows: response.data.total_rows,
+      };
     } catch (error) {
-      console.error("File preview error:", error);
+      if (axios.isCancel(error)) {
+        console.error("Request canceled:", error.message);
+      } else {
+        console.error("File preview error:", error);
+      }
       return null;
     }
   }

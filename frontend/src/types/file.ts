@@ -3,6 +3,7 @@ export enum FileUploadStatus {
   UPLOADING = "uploading",
   PAUSED = "paused",
   COMPLETED = "completed",
+  CANCELLED = "cancelled",
   FAILED = "failed",
 }
 

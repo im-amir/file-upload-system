@@ -1,5 +1,5 @@
 import requests
-from fastapi import APIRouter, UploadFile, HTTPException, Query
+from fastapi import APIRouter, UploadFile, HTTPException, Query, Form
 from app.services.file_service import FileService
 from fastapi.responses import StreamingResponse, JSONResponse
 import pandas as pd
@@ -7,6 +7,8 @@ import numpy as np
 import uuid
 import asyncio
 import json
+import os
+import io
 from app.services.upload_progress import UPLOAD_PROGRESS
 
 router = APIRouter()
@@ -224,19 +226,3 @@ async def download_file(url: str = Query(...)):
     except Exception as e:
         print(f"Error downloading file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
-
-
-@router.get("/preview")
-async def preview_file(url: str = Query(...)):
-    try:
-        # Fetch the file from S3
-        response = requests.get(url)
-        
-        # Check if the request was successful
-        if response.status_code != 200:
-            raise HTTPException(status_code=404, detail="File not found")
-        
-        # Return file content
-        return response.text
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error previewing file: {str(e)}")
