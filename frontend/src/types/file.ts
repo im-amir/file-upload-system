@@ -3,6 +3,7 @@ export enum FileUploadStatus {
   UPLOADING = "uploading",
   COMPLETED = "completed",
   FAILED = "failed",
+  CANCELLED = "cancelled",
 }
 
 export interface FileUpload {

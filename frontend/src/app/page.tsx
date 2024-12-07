@@ -1,11 +1,12 @@
 "use client";
 
 import { Container, Typography, Paper, Grid, Box } from "@mui/material";
-import { useState } from "react";
-import { FileUploadService } from "@/services/fileUploadService";
+import { useCallback, useState } from "react";
 import { useFileUpload } from "@/hooks";
 import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
 import { FileList } from "@/components/FileManager/FileList";
+import { FileManagerService } from "@/services";
+import axios from "axios";
 
 export default function Home() {
   const { files, addFiles, removeFile, updateFileProgress } = useFileUpload();
@@ -15,18 +16,34 @@ export default function Home() {
     addFiles(selectedFiles);
   };
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     if (files.length === 0) return;
 
     setIsUploading(true);
+    const cancelTokenSource = axios.CancelToken.source();
+
     try {
-      await FileUploadService.uploadFiles(files, updateFileProgress);
+      // Create upload promises with individual progress tracking
+      const uploadPromises = files.map((fileUpload) =>
+        FileManagerService.uploadFile(
+          fileUpload.file,
+          (progress) => {
+            // Update individual file progress
+            updateFileProgress(fileUpload.id, progress);
+          },
+          cancelTokenSource.token
+        )
+      );
+
+      // Wait for all uploads to complete
+      await Promise.all(uploadPromises);
     } catch (error) {
       console.error("Upload failed", error);
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [files, updateFileProgress]);
+
   return (
     <Box p={4}>
       <Container maxWidth="md" sx={{ mt: 4 }}>
@@ -57,7 +74,10 @@ export default function Home() {
             </Grid>
           </Grid>
         </Paper>
-        <FileList />
+
+        <Box mt={3}>
+          <FileList />
+        </Box>
       </Container>
     </Box>
   );
