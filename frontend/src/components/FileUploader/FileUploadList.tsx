@@ -20,15 +20,11 @@ import { FileUpload, FileUploadStatus } from "../../types/file";
 interface FileUploadListProps {
   files: FileUpload[];
   onRemoveFile: (fileId: string) => void;
-  onPauseFile: (fileId: string) => void;
-  onResumeFile: (fileId: string) => void;
 }
 
 export const FileUploadList: React.FC<FileUploadListProps> = ({
   files,
   onRemoveFile,
-  onPauseFile,
-  onResumeFile,
 }) => {
   const getStatusIcon = (status: FileUploadStatus) => {
     switch (status) {
@@ -50,24 +46,6 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
           divider
           secondaryAction={
             <Box display="flex" alignItems="center">
-              {file.status === FileUploadStatus.UPLOADING && (
-                <IconButton
-                  edge="end"
-                  onClick={() => onPauseFile(file.id)}
-                  color="primary"
-                >
-                  <PauseIcon />
-                </IconButton>
-              )}
-              {file.status === FileUploadStatus.PAUSED && (
-                <IconButton
-                  edge="end"
-                  onClick={() => onResumeFile(file.id)}
-                  color="primary"
-                >
-                  <ResumeIcon />
-                </IconButton>
-              )}
               <IconButton
                 edge="end"
                 onClick={() => onRemoveFile(file.id)}

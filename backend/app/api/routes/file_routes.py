@@ -21,6 +21,11 @@ async def init_upload(
     totalChunks: int = Query(...)
 ):
     upload_id = str(uuid.uuid4())
+    UPLOAD_PROGRESS[upload_id] = {
+        'filename': filename,
+        'filesize': filesize,
+        'totalChunks': totalChunks
+    }
     return {"uploadId": upload_id}
 
 @router.post("/upload/chunk")
@@ -45,6 +50,23 @@ async def upload_chunk(
         "message": "Chunk uploaded successfully",
         "chunkIndex": chunkIndex
     }
+
+@router.post("/upload/cancel")
+async def cancel_upload(uploadId: str):
+    print("UPLOAD PROGRESS ISSSS",UPLOAD_PROGRESS)
+    upload_info = UPLOAD_PROGRESS.get(uploadId)
+    if not upload_info:
+        raise HTTPException(status_code=404, detail="Upload not found")
+    
+    filename = upload_info['filename']
+    file_service = FileService()
+    
+    try:
+        success = await file_service.cancel_upload(uploadId, filename)
+        del UPLOAD_PROGRESS[uploadId]
+        return {"success": success}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/upload/finalize")
 async def finalize_upload(uploadId: str = Query(...), filename: str = Query(...)):
