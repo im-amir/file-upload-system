@@ -9,10 +9,7 @@ import {
   Paper,
   IconButton,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Typography,
+  CircularProgress,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
@@ -20,23 +17,62 @@ import {
 } from "@mui/icons-material";
 import { UploadedFile } from "../../types/file";
 import { useFileManager } from "../../hooks/useFileManager";
+import { FilePreviewDialog } from "./FilePreviewDialog";
 
 export const FileList: React.FC = () => {
-  const { files, downloadFile, previewFile } = useFileManager();
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const { files, downloadFile, previewFile, isLoading } = useFileManager();
+  const [previewData, setPreviewData] = useState<{
+    headers: string[];
+    rows: any[];
+    total_rows?: number;
+  } | null>(null);
+  const [previewSkip, setPreviewSkip] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState(true);
 
-  console.log("files", files);
   const handleDownload = (file: UploadedFile) => {
     downloadFile(file);
   };
 
   const handlePreview = async (file: UploadedFile) => {
+    setPreviewSkip(0);
+    setHasMoreData(true);
     const content = await previewFile(file);
-    setPreviewContent(content);
+    if (content) {
+      setPreviewData(content);
+      setHasMoreData(content.rows.length === 100);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (previewData && hasMoreData) {
+      setIsLoadingMore(true);
+      const file = files.find((f) => f.url === previewData.rows[0]?.url);
+
+      if (file) {
+        const nextSkip = previewSkip + 100;
+        const moreContent = await previewFile(file, nextSkip, 100);
+
+        if (moreContent && moreContent.rows.length > 0) {
+          setPreviewData({
+            headers: previewData.headers,
+            rows: [...previewData.rows, ...moreContent.rows],
+            total_rows: moreContent.total_rows,
+          });
+          setPreviewSkip(nextSkip);
+          setHasMoreData(moreContent.rows.length === 100);
+        } else {
+          setHasMoreData(false);
+        }
+      }
+      setIsLoadingMore(false);
+    }
   };
 
   const handleClosePreview = () => {
-    setPreviewContent(null);
+    setPreviewData(null);
+    setPreviewSkip(0);
+    setHasMoreData(true);
   };
 
   return (
@@ -52,37 +88,50 @@ export const FileList: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {files.map((file) => (
-              <TableRow key={file.id}>
-                <TableCell>{file.name}</TableCell>
-                <TableCell>{(file.size / 1024).toFixed(2)}</TableCell>
-                <TableCell>{file.uploadDate.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Tooltip title="Download">
-                    <IconButton onClick={() => handleDownload(file)}>
-                      <DownloadIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Preview">
-                    <IconButton onClick={() => handlePreview(file)}>
-                      <PreviewIcon />
-                    </IconButton>
-                  </Tooltip>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  <CircularProgress />
                 </TableCell>
               </TableRow>
-            ))}
+            ) : files.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  No files uploaded
+                </TableCell>
+              </TableRow>
+            ) : (
+              files.map((file) => (
+                <TableRow key={file.id}>
+                  <TableCell>{file.name}</TableCell>
+                  <TableCell>{(file.size / 1024).toFixed(2)}</TableCell>
+                  <TableCell>{file.uploadDate.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Tooltip title="Download">
+                      <IconButton onClick={() => handleDownload(file)}>
+                        <DownloadIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Preview">
+                      <IconButton onClick={() => handlePreview(file)}>
+                        <PreviewIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>
 
-      <Dialog open={!!previewContent} onClose={handleClosePreview}>
-        <DialogTitle>File Preview</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" component="pre">
-            {previewContent}
-          </Typography>
-        </DialogContent>
-      </Dialog>
+      <FilePreviewDialog
+        previewData={previewData}
+        handleClosePreview={handleClosePreview}
+        onLoadMore={handleLoadMore}
+        isLoadingMore={isLoadingMore}
+        hasMoreData={hasMoreData}
+      />
     </>
   );
 };

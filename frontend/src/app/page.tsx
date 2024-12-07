@@ -1,32 +1,80 @@
 "use client";
 
 import { Container, Typography, Paper, Grid, Box } from "@mui/material";
-import { useState } from "react";
-import { FileUploadService } from "@/services/fileUploadService";
+import { useCallback, useState, useRef } from "react";
 import { useFileUpload } from "@/hooks";
 import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
 import { FileList } from "@/components/FileManager/FileList";
+import { FileManagerService } from "@/services";
+import axios from "axios";
+import { FileUploadStatus } from "@/types/file";
 
 export default function Home() {
-  const { files, addFiles, removeFile, updateFileProgress } = useFileUpload();
+  const {
+    files,
+    addFiles,
+    removeFile,
+    updateFileProgress,
+    pauseFile,
+    resumeFile,
+  } = useFileUpload();
   const [isUploading, setIsUploading] = useState(false);
+  const uploadCancelTokens = useRef<any>({});
 
   const handleFileSelect = (selectedFiles: File[]) => {
     addFiles(selectedFiles);
   };
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     if (files.length === 0) return;
 
     setIsUploading(true);
+
     try {
-      await FileUploadService.uploadFiles(files, updateFileProgress);
+      // Create upload promises with individual progress tracking
+      const uploadPromises = files
+        .filter((f) => f.status !== FileUploadStatus.PAUSED)
+        .map((fileUpload) => {
+          // Create a cancel token for this file
+          const cancelTokenSource = axios.CancelToken.source();
+          uploadCancelTokens.current[fileUpload.id] = cancelTokenSource;
+
+          return FileManagerService.uploadFile(
+            fileUpload.file,
+            (progress) => {
+              // Update individual file progress
+              updateFileProgress(fileUpload.id, progress);
+            },
+            (fileUrl) => {
+              // Handle upload completion
+              console.log("File uploaded:", fileUrl);
+            },
+            cancelTokenSource.token
+          );
+        });
+
+      // Wait for all uploads to complete
+      await Promise.all(uploadPromises);
     } catch (error) {
       console.error("Upload failed", error);
     } finally {
       setIsUploading(false);
     }
+  }, [files, updateFileProgress]);
+
+  const handlePauseFile = (fileId: string) => {
+    // Cancel the upload for this file
+    const cancelToken = uploadCancelTokens.current[fileId];
+    if (cancelToken) {
+      cancelToken.cancel("Upload paused");
+    }
+    pauseFile(fileId);
   };
+
+  const handleResumeFile = (fileId: string) => {
+    resumeFile(fileId);
+  };
+
   return (
     <Box p={4}>
       <Container maxWidth="md" sx={{ mt: 4 }}>
@@ -42,7 +90,12 @@ export default function Home() {
 
             {files.length > 0 && (
               <Grid item xs={12}>
-                <FileUploadList files={files} onRemoveFile={removeFile} />
+                <FileUploadList
+                  files={files}
+                  onRemoveFile={removeFile}
+                  onPauseFile={handlePauseFile}
+                  onResumeFile={handleResumeFile}
+                />
               </Grid>
             )}
 
@@ -57,7 +110,10 @@ export default function Home() {
             </Grid>
           </Grid>
         </Paper>
-        <FileList />
+
+        <Box mt={3}>
+          <FileList />
+        </Box>
       </Container>
     </Box>
   );

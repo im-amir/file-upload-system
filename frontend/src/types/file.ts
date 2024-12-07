@@ -1,7 +1,9 @@
 export enum FileUploadStatus {
   PENDING = "pending",
   UPLOADING = "uploading",
+  PAUSED = "paused",
   COMPLETED = "completed",
+  CANCELLED = "cancelled",
   FAILED = "failed",
 }
 
@@ -10,8 +12,9 @@ export interface FileUpload {
   file: File;
   name: string;
   size: number;
-  status: FileUploadStatus;
   progress: number;
+  status: FileUploadStatus;
+  pausedAt?: number;
 }
 
 export interface UploadedFile {
