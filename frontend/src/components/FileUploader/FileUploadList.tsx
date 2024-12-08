@@ -1,11 +1,8 @@
 import React from "react";
 import {
-  List,
-  ListItem,
   ListItemText,
   LinearProgress,
   Typography,
-  Box,
   IconButton,
 } from "@mui/material";
 import {
@@ -14,6 +11,16 @@ import {
   Error as ErrorIcon,
 } from "@mui/icons-material";
 import { FileUpload, FileUploadStatus } from "../../types/file";
+import {
+  FileUploadListContainer,
+  FileUploadListItem,
+  FileUploadContainer,
+  FileDetailsContainer,
+  ProgressContainer,
+  ProgressWrapper,
+  ProgressPercentage,
+  SecondaryActionContainer,
+} from "./elements";
 
 interface FileUploadListProps {
   files: FileUpload[];
@@ -36,14 +43,14 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
   };
 
   return (
-    <List data-testid="upload-list">
+    <FileUploadListContainer data-testid="upload-list">
       {files.map((file) => (
-        <ListItem
+        <FileUploadListItem
           key={file.id}
           data-testid="file-upload-item"
           divider
           secondaryAction={
-            <Box display="flex" alignItems="center">
+            <SecondaryActionContainer>
               <IconButton
                 edge="end"
                 onClick={() => onRemoveFile(file.id)}
@@ -51,17 +58,17 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
               >
                 <CancelIcon />
               </IconButton>
-            </Box>
+            </SecondaryActionContainer>
           }
         >
-          <Box sx={{ width: "100%", display: "flex", alignItems: "center" }}>
-            <Box sx={{ width: "100%", mr: 1 }}>
+          <FileUploadContainer>
+            <FileDetailsContainer>
               <ListItemText
                 primary={file.name}
                 secondary={`${(file.size / (1024 * 1024)).toFixed(2)} MB`}
               />
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <Box sx={{ width: "100%", mr: 1 }}>
+              <ProgressContainer>
+                <ProgressWrapper>
                   <LinearProgress
                     data-testid="progress-bar"
                     variant="determinate"
@@ -72,18 +79,18 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
                         : "primary"
                     }
                   />
-                </Box>
-                <Box sx={{ minWidth: 35 }}>
+                </ProgressWrapper>
+                <ProgressPercentage>
                   <Typography variant="body2" color="text.secondary">
                     {`${file.progress}%`}
                   </Typography>
-                </Box>
+                </ProgressPercentage>
                 {getStatusIcon(file.status)}
-              </Box>
-            </Box>
-          </Box>
-        </ListItem>
+              </ProgressContainer>
+            </FileDetailsContainer>
+          </FileUploadContainer>
+        </FileUploadListItem>
       ))}
-    </List>
+    </FileUploadListContainer>
   );
 };

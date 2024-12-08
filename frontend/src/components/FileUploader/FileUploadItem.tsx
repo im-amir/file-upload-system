@@ -4,7 +4,6 @@ import {
   ListItemText,
   LinearProgress,
   Typography,
-  Box,
   IconButton,
 } from "@mui/material";
 import {
@@ -13,6 +12,13 @@ import {
   Error as ErrorIcon,
 } from "@mui/icons-material";
 import { FileUpload, FileUploadStatus } from "../../types/file";
+import {
+  FileDetailsContainer,
+  FileUploadContainer,
+  ProgressContainer,
+  ProgressPercentage,
+  ProgressWrapper,
+} from "./elements";
 
 interface FileUploadItemProps {
   file: FileUpload;
@@ -47,14 +53,14 @@ export const FileUploadItem: React.FC<FileUploadItemProps> = ({
         </IconButton>
       }
     >
-      <Box sx={{ width: "100%", display: "flex", alignItems: "center" }}>
-        <Box sx={{ width: "100%", mr: 1 }}>
+      <FileUploadContainer>
+        <FileDetailsContainer>
           <ListItemText
             primary={file.name}
             secondary={`${(file.size / 1024).toFixed(2)} KB`}
           />
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box sx={{ width: "100%", mr: 1 }}>
+          <ProgressContainer>
+            <ProgressWrapper>
               <LinearProgress
                 variant="determinate"
                 value={file.progress}
@@ -62,16 +68,16 @@ export const FileUploadItem: React.FC<FileUploadItemProps> = ({
                   file.status === FileUploadStatus.FAILED ? "error" : "primary"
                 }
               />
-            </Box>
-            <Box sx={{ minWidth: 35 }}>
+            </ProgressWrapper>
+            <ProgressPercentage>
               <Typography variant="body2" color="text.secondary">
                 {`${file.progress}%`}
               </Typography>
-            </Box>
+            </ProgressPercentage>
             {getStatusIcon(file.status)}
-          </Box>
-        </Box>
-      </Box>
+          </ProgressContainer>
+        </FileDetailsContainer>
+      </FileUploadContainer>
     </ListItem>
   );
 };
