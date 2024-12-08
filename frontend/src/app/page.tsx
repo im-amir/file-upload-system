@@ -1,84 +1,130 @@
 "use client";
 
 import { Container, Typography, Paper, Grid, Box } from "@mui/material";
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState } from "react";
+import { toast, Toaster } from "sonner";
 import { useFileUpload } from "@/hooks";
 import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
 import { FileList } from "@/components/FileManager/FileList";
 import { FileManagerService } from "@/services";
-import axios from "axios";
 import { FileUploadStatus } from "@/types/file";
+import { useFileManager } from "@/hooks/useFileManager";
 
 export default function Home() {
-  const {
-    files,
-    addFiles,
-    removeFile,
-    updateFileProgress,
-    pauseFile,
-    resumeFile,
-  } = useFileUpload();
+  const { files, addFiles, removeFile, updateFileProgress } = useFileUpload();
+  const { setFiles: setUploadedFiles } = useFileManager();
+
   const [isUploading, setIsUploading] = useState(false);
-  const uploadCancelTokens = useRef<any>({});
+  const [uploadCancellations, setUploadCancellations] = useState<{
+    [fileId: string]: (() => void) | null;
+  }>({});
 
   const handleFileSelect = (selectedFiles: File[]) => {
-    addFiles(selectedFiles);
+    console.log("Selected files:", selectedFiles);
+    const csvFiles = selectedFiles.filter(
+      (file) => file.type === "text/csv" || file.name.endsWith(".csv")
+    );
+
+    if (csvFiles.length > 0) {
+      addFiles(csvFiles);
+      toast.success(`Added ${csvFiles.length} CSV file(s)`, {
+        description: csvFiles.map((file) => file.name).join(", "),
+        id: "file-upload-toast",
+      });
+    } else {
+      toast.error("Invalid file type", {
+        description: "Only CSV files are allowed",
+        id: "file-upload-error-toast",
+      });
+    }
   };
 
   const handleUpload = useCallback(async () => {
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      toast.error("No files to upload", {
+        description: "Please select CSV files first",
+      });
+      return;
+    }
 
     setIsUploading(true);
+    const newCancellations: { [fileId: string]: (() => Promise<void>) | null } =
+      {};
 
     try {
-      // Create upload promises with individual progress tracking
       const uploadPromises = files
         .filter((f) => f.status !== FileUploadStatus.PAUSED)
-        .map((fileUpload) => {
-          // Create a cancel token for this file
-          const cancelTokenSource = axios.CancelToken.source();
-          uploadCancelTokens.current[fileUpload.id] = cancelTokenSource;
+        .map(async (fileUpload: any) => {
+          try {
+            const { fileUrl } = await FileManagerService.uploadFile(
+              fileUpload.file,
+              (progress, cancel) => {
+                newCancellations[fileUpload.id] = cancel;
+                setUploadCancellations(newCancellations);
+                updateFileProgress(fileUpload.id, progress);
+              },
+              (fileUrl: string | null) => {
+                setIsUploading(false);
+                if (fileUrl) {
+                  toast.success(`${fileUpload.name} uploaded successfully`);
+                  setUploadedFiles((prevFiles: any) => [
+                    ...prevFiles,
+                    {
+                      name: fileUpload.name,
+                      url: fileUrl,
+                    },
+                  ]);
+                  setTimeout(() => {
+                    removeFile(fileUpload.id);
+                  }, 4000);
+                }
+                setUploadCancellations({});
+              }
+            );
 
-          return FileManagerService.uploadFile(
-            fileUpload.file,
-            (progress) => {
-              // Update individual file progress
-              updateFileProgress(fileUpload.id, progress);
-            },
-            (fileUrl) => {
-              // Handle upload completion
-              console.log("File uploaded:", fileUrl);
-            },
-            cancelTokenSource.token
-          );
+            return fileUrl;
+          } catch (error) {
+            console.log(error);
+          }
         });
 
-      // Wait for all uploads to complete
       await Promise.all(uploadPromises);
-    } catch (error) {
-      console.error("Upload failed", error);
+    } catch (error: any) {
+      toast.error("Upload failed", {
+        description: "Some files could not be uploaded",
+      });
+      console.log(error);
     } finally {
       setIsUploading(false);
     }
   }, [files, updateFileProgress]);
 
-  const handlePauseFile = (fileId: string) => {
-    // Cancel the upload for this file
-    const cancelToken = uploadCancelTokens.current[fileId];
-    if (cancelToken) {
-      cancelToken.cancel("Upload paused");
-    }
-    pauseFile(fileId);
-  };
+  const handleCancelFile = async (fileId: string) => {
+    const cancelMethod = uploadCancellations[fileId];
+    const fileToCancel = files.find((f) => f.id === fileId);
 
-  const handleResumeFile = (fileId: string) => {
-    resumeFile(fileId);
+    if (cancelMethod) {
+      try {
+        toast.info(`Upload cancelled for ${fileToCancel?.name}`);
+        removeFile(fileId);
+
+        await cancelMethod();
+      } catch (error) {
+        toast.error(`Error cancelling file upload`, {
+          description: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } else {
+      removeFile(fileId);
+    }
   };
+  console.log("files", files);
 
   return (
     <Box p={4}>
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 3 }}>
+      <Toaster position="top-right" richColors closeButton />
+      <Paper elevation={3} sx={{ p: 3, width: "70%", margin: "auto" }}>
+        <Container maxWidth="md" sx={{ mt: 4 }}>
           <Typography variant="h4" gutterBottom align="center">
             CSV File Uploader
           </Typography>
@@ -90,17 +136,13 @@ export default function Home() {
 
             {files.length > 0 && (
               <Grid item xs={12}>
-                <FileUploadList
-                  files={files}
-                  onRemoveFile={removeFile}
-                  onPauseFile={handlePauseFile}
-                  onResumeFile={handleResumeFile}
-                />
+                <FileUploadList files={files} onRemoveFile={handleCancelFile} />
               </Grid>
             )}
 
             <Grid item xs={12} sx={{ textAlign: "center" }}>
               <BaseButton
+                testId="upload-button"
                 onClick={handleUpload}
                 disabled={files.length === 0 || isUploading}
                 color="primary"
@@ -109,12 +151,15 @@ export default function Home() {
               </BaseButton>
             </Grid>
           </Grid>
-        </Paper>
 
-        <Box mt={3}>
-          <FileList />
-        </Box>
-      </Container>
+          <Box mt={5}>
+            <Typography variant="h4" gutterBottom>
+              All Files
+            </Typography>
+            <FileList />
+          </Box>
+        </Container>
+      </Paper>
     </Box>
   );
 }

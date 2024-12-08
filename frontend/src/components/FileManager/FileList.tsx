@@ -10,6 +10,7 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  Box,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
@@ -18,6 +19,7 @@ import {
 import { UploadedFile } from "../../types/file";
 import { useFileManager } from "../../hooks/useFileManager";
 import { FilePreviewDialog } from "./FilePreviewDialog";
+import { toast } from "sonner";
 
 export const FileList: React.FC = () => {
   const { files, downloadFile, previewFile, isLoading } = useFileManager();
@@ -29,29 +31,34 @@ export const FileList: React.FC = () => {
   const [previewSkip, setPreviewSkip] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<Partial<UploadedFile>>({});
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   const handleDownload = (file: UploadedFile) => {
     downloadFile(file);
   };
 
   const handlePreview = async (file: UploadedFile) => {
+    setSelectedFile(file);
+    setIsLoadingPreview(true);
     setPreviewSkip(0);
     setHasMoreData(true);
+    toast.info("Loading preview...");
     const content = await previewFile(file);
     if (content) {
       setPreviewData(content);
       setHasMoreData(content.rows.length === 100);
     }
+    setIsLoadingPreview(false);
   };
 
   const handleLoadMore = async () => {
     if (previewData && hasMoreData) {
       setIsLoadingMore(true);
-      const file = files.find((f) => f.url === previewData.rows[0]?.url);
 
-      if (file) {
+      try {
         const nextSkip = previewSkip + 100;
-        const moreContent = await previewFile(file, nextSkip, 100);
+        const moreContent = await previewFile(selectedFile, nextSkip, 100);
 
         if (moreContent && moreContent.rows.length > 0) {
           setPreviewData({
@@ -59,13 +66,19 @@ export const FileList: React.FC = () => {
             rows: [...previewData.rows, ...moreContent.rows],
             total_rows: moreContent.total_rows,
           });
+
           setPreviewSkip(nextSkip);
           setHasMoreData(moreContent.rows.length === 100);
         } else {
+          // No file URL available
           setHasMoreData(false);
         }
+      } catch (error) {
+        console.error("Error loading more data:", error);
+        setHasMoreData(false);
+      } finally {
+        setIsLoadingMore(false);
       }
-      setIsLoadingMore(false);
     }
   };
 
@@ -76,13 +89,13 @@ export const FileList: React.FC = () => {
   };
 
   return (
-    <>
+    <Box data-testid="file-list">
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>File Name</TableCell>
-              <TableCell>Size (KB)</TableCell>
+              <TableCell>Size (MB)</TableCell>
               <TableCell>Upload Date</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -101,19 +114,31 @@ export const FileList: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              files.map((file) => (
+              files.map((file: any) => (
                 <TableRow key={file.id}>
                   <TableCell>{file.name}</TableCell>
-                  <TableCell>{(file.size / 1024).toFixed(2)}</TableCell>
-                  <TableCell>{file.uploadDate.toLocaleString()}</TableCell>
+                  <TableCell>
+                    {(file.size / (1024 * 1024)).toFixed(2)}
+                  </TableCell>
+                  <TableCell data-testid="upload-date">
+                    {file.uploadDate.toLocaleString()}
+                  </TableCell>
                   <TableCell>
                     <Tooltip title="Download">
-                      <IconButton onClick={() => handleDownload(file)}>
+                      <IconButton
+                        data-testid="download-button"
+                        onClick={() => handleDownload(file)}
+                        disabled={isLoadingPreview}
+                      >
                         <DownloadIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Preview">
-                      <IconButton onClick={() => handlePreview(file)}>
+                      <IconButton
+                        data-testid="preview-button"
+                        onClick={() => handlePreview(file)}
+                        disabled={isLoadingPreview}
+                      >
                         <PreviewIcon />
                       </IconButton>
                     </Tooltip>
@@ -132,6 +157,6 @@ export const FileList: React.FC = () => {
         isLoadingMore={isLoadingMore}
         hasMoreData={hasMoreData}
       />
-    </>
+    </Box>
   );
 };

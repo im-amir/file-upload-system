@@ -1,4 +1,4 @@
-import axios, { CancelToken } from "axios";
+import axios from "axios";
 import { UploadedFile } from "../types/file";
 
 export class FileManagerService {
@@ -23,15 +23,23 @@ export class FileManagerService {
 
   static async uploadFile(
     file: File,
-    onProgress?: (progress: number) => void,
-    onComplete?: (fileUrl: string) => void,
-    cancelToken?: CancelToken
-  ): Promise<string> {
+    onProgress?: (progress: number, cancelUploadFn?: any) => void,
+    onComplete?: (fileUrl: string | null) => void
+  ): Promise<{ fileUrl: string }> {
     const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    let uploadId: any;
+    let eventSource: EventSource | null = null;
+    let cancelUploadFn: (() => Promise<void>) | null = null;
 
     // Initial progress (init stage)
     onProgress?.(0);
+
+    console.log("Uploading file:", {
+      filename: file.name,
+      filesize: file.size,
+      totalChunks: Math.ceil(file.size / (1 * 1024 * 1024)),
+    });
 
     try {
       // Upload init with progress
@@ -44,7 +52,6 @@ export class FileManagerService {
             filesize: file.size,
             totalChunks: totalChunks,
           },
-          cancelToken,
           onUploadProgress: () => {
             const initProgress = 1;
             onProgress?.(initProgress);
@@ -52,7 +59,7 @@ export class FileManagerService {
         }
       );
 
-      const { uploadId } = uploadInitResponse.data;
+      uploadId = uploadInitResponse.data.uploadId;
 
       // Upload chunks with progress
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -67,77 +74,51 @@ export class FileManagerService {
 
         await axios.post(`${this.BASE_URL}/upload/chunk`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
-          cancelToken,
           onUploadProgress: () => {
-            // Chunks progress from 1% to 4%
             const chunkProgress = Math.floor(
               1 + (chunkIndex / totalChunks) * 3
             );
-
             onProgress?.(chunkProgress);
           },
         });
       }
 
       // Finalize upload with progress tracking
-      return new Promise((resolve, reject) => {
-        let lastProgressTime = Date.now();
-        let currentProgress = 4; // Starting progress
-        let progressInterval: NodeJS.Timeout | null = null;
-
-        const getRandomIncrement = () => {
-          // Generate a random increment between 0.05 and 0.25
-          return Math.random() * 0.2 + 0.05;
-        };
-
-        const startProgressIncrement = () => {
-          progressInterval = setInterval(() => {
-            const timeSinceLastProgress = Date.now() - lastProgressTime;
-
-            if (timeSinceLastProgress > 1000) {
-              // Randomly increment progress
-              const randomIncrement = getRandomIncrement();
-              currentProgress = Math.min(
-                currentProgress + randomIncrement,
-                100
-              );
-              onProgress?.(Math.floor(currentProgress));
-            }
-          }, Math.floor(Math.random() * 100) + 40); // Randomize interval between 40-140ms
-        };
-
-        const stopProgressIncrement = () => {
-          if (progressInterval) {
-            clearInterval(progressInterval);
-            progressInterval = null;
-          }
-        };
-
-        const eventSource = new EventSource(
+      return new Promise((resolve: any, reject) => {
+        eventSource = new EventSource(
           `${this.BASE_URL}/upload/finalize?uploadId=${uploadId}&filename=${file.name}`
         );
+
+        // Create cancel function
+        cancelUploadFn = async () => {
+          if (uploadId) {
+            console.log("Cancelling upload...");
+            try {
+              eventSource?.close();
+              onComplete?.(null);
+              await this.cancelUpload(uploadId);
+              reject(new Error("Upload cancelled"));
+            } catch (error) {
+              console.error("Error cancelling upload:", error);
+            }
+          }
+        };
 
         eventSource.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log("Received event:", data);
-
-            // Reset last progress time and stop increment
-            lastProgressTime = Date.now();
-            stopProgressIncrement();
+            onProgress?.(4, cancelUploadFn);
 
             if (data.progress !== undefined) {
-              // Start from 4% and scale the finalize progress
-              currentProgress = Math.floor(4 + (data.progress / 100) * 96);
-              onProgress?.(currentProgress);
+              const adjustedProgress = 4 + data.progress * 0.96;
+              onProgress?.(Math.floor(adjustedProgress), cancelUploadFn);
 
               if (data.complete) {
-                eventSource.close();
+                eventSource?.close();
                 onComplete?.(data.fileUrl);
-                resolve(data.fileUrl);
-              } else {
-                // Start progress increment if no progress for more than 1 second
-                startProgressIncrement();
+                resolve({
+                  fileUrl: data.fileUrl,
+                });
               }
             }
           } catch (error) {
@@ -147,35 +128,54 @@ export class FileManagerService {
 
         eventSource.onerror = (error) => {
           console.error("EventSource failed:", error);
-          stopProgressIncrement();
-          eventSource.close();
+          eventSource?.close();
           reject(error);
         };
-
-        // Initial start of progress increment
-        startProgressIncrement();
       });
     } catch (error) {
       console.error("Chunked file upload error:", error);
+      if (uploadId) {
+        await this.cancelUpload(uploadId);
+      }
       throw error;
+    }
+  }
+
+  static async cancelUpload(uploadId: string): Promise<boolean> {
+    try {
+      const response = await axios.post(
+        `${this.BASE_URL}/upload/cancel`,
+        null,
+        {
+          params: { uploadId },
+        }
+      );
+      return response.data.success;
+    } catch (error) {
+      console.error("Error cancelling upload:", error);
+      return false;
     }
   }
 
   static async downloadFile(fileUrl: string, fileName: string): Promise<void> {
     try {
-      // Use backend proxy for download
+      // Get pre-signed download URL from backend
       const response = await axios.get(`${this.BASE_URL}/download`, {
         params: { url: fileUrl },
-        responseType: "blob",
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Use the pre-signed URL to download directly
+      const downloadUrl = response.data.downloadUrl;
+      const suggestedFileName = response.data.filename;
+
+      // Create a temporary link and trigger download with specific attributes
       const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", fileName);
+      link.href = downloadUrl;
+      link.setAttribute("download", suggestedFileName || fileName);
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
-      link.remove();
+      document.body.removeChild(link);
     } catch (error) {
       console.error("File download error:", error);
       throw error;

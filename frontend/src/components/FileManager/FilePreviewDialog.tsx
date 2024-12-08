@@ -10,7 +10,6 @@ import {
   TableRow,
   TableCell,
   Paper,
-  Typography,
   Button,
   Box,
   CircularProgress,
@@ -45,6 +44,7 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
       onClose={handleClosePreview}
       maxWidth="lg"
       fullWidth
+      data-testid="file-preview-dialog"
     >
       <DialogTitle>File Preview</DialogTitle>
       <DialogContent>

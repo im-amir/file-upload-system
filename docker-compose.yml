@@ -12,7 +12,7 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000/api
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
       - CHOKIDAR_USEPOLLING=true # Enable polling for file changes
     command: npm run dev
 
@@ -26,4 +26,8 @@ services:
       - ./backend:/app
     environment:
       - PYTHONUNBUFFERED=1 # Ensure real-time logging
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

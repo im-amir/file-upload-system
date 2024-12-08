@@ -1,0 +1,8 @@
+{
+  "headers": ["Column1", "Column2"],
+  "rows": [
+    { "Column1": "value1", "Column2": "value2" },
+    { "Column1": "value3", "Column2": "value4" }
+  ],
+  "total_rows": 2
+}

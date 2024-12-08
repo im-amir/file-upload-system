@@ -3,9 +3,11 @@ from fastapi import UploadFile
 import os
 import io
 import math
+from urllib.parse import urlparse  # Add this line
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from app.services.upload_progress import UPLOAD_PROGRESS
+from typing import AsyncGenerator
 
 
 load_dotenv()
@@ -14,38 +16,27 @@ S3_SIZE_LIMIT = 5 * 1024 * 1024  # 5MB
 
 class FileService:
     def __init__(self):
+        print('Initializing FileService', os.environ.get('AWS_ACCESS_KEY_ID')) 
         self.s3 = boto3.client(
             's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION'),
-            config=boto3.session.Config(s3={'use_accelerate_endpoint': True})  # Add this line
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.environ.get('AWS_REGION'),
+            config=boto3.session.Config(s3={'use_accelerate_endpoint': True})
         )
-        self.bucket = os.getenv('AWS_BUCKET_NAME')
+        self.bucket = os.environ.get('AWS_BUCKET_NAME')
+        self.upload_states = {}  # Track upload states
 
-    async def upload_file(self, file: UploadFile) -> str:
-        try:
-            contents = await file.read()
-            key = f'uploads/{file.filename}'
-            self.s3.put_object(
-                Bucket=self.bucket,
-                Key=key,
-                Body=contents,
-                ContentType='text/csv'
-            )
-            url = f"https://{self.bucket}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{key}"
-            return url
-        except Exception as e:
-            raise Exception(f"Error uploading file: {str(e)}")
-
-    async def upload_file(self, file: UploadFile, upload_id: str = None):
+    async def upload_file(self, file: UploadFile, upload_id: str = None) -> AsyncGenerator:
+   
         try:
             file_content = await file.read()
             total_size = len(file_content)
             uploaded_size = 0
-            
-            # For small files, use simple upload
-            if total_size < S3_SIZE_LIMIT:  # Less than 5MB
+
+            # Small file upload (less than 5MB)
+            if total_size < 5 * 1024 * 1024:
+                print(f"File is small ({total_size} bytes). Using simple upload.")
                 file_obj = io.BytesIO(file_content)
                 key = f'uploads/{file.filename}'
                 
@@ -56,7 +47,7 @@ class FileService:
                     ExtraArgs={'ContentType': 'text/csv'}
                 )
                 
-                url = f"https://{self.bucket}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{key}"
+                url = f"https://{self.bucket}.s3.{os.environ.get('AWS_REGION')}.amazonaws.com/{key}"
                 
                 yield {
                     'progress': 100,
@@ -64,16 +55,8 @@ class FileService:
                     'fileUrl': url
                 }
                 return
-            
-            MAX_PARTS = 10000  # S3 multipart upload limit
 
-            # Dynamically calculate chunk size
-            chunk_size = max(
-                S3_SIZE_LIMIT, 
-                math.ceil(total_size / MAX_PARTS)
-            )
-
-            # Initiate multipart upload
+            # Multipart upload for larger files
             multipart_upload = self.s3.create_multipart_upload(
                 Bucket=self.bucket,
                 Key=f'uploads/{file.filename}',
@@ -83,25 +66,15 @@ class FileService:
 
             parts = []
             part_number = 1
-            
-            # Initial size yield
-            yield {
-                'total_size': total_size,
-                'chunk_size': chunk_size
-            }
+            chunk_size = max(5 * 1024 * 1024, math.ceil(total_size / 10000))
 
-            # More granular progress tracking
-            num_progress_updates = 100  # Aim for 100 progress updates
-            progress_chunk_size = total_size / num_progress_updates
+            yield {'total_size': total_size}
 
-            # Track last reported progress to avoid duplicate yields
-            last_progress_reported = 0
-
-            # Split content into chunks
+            # Chunk upload process
             for i in range(0, total_size, chunk_size):
                 chunk = file_content[i:i + chunk_size]
-                
-                # Upload part to S3
+                uploaded_size += len(chunk)
+
                 part = self.s3.upload_part(
                     Bucket=self.bucket,
                     Key=f'uploads/{file.filename}',
@@ -109,27 +82,21 @@ class FileService:
                     UploadId=upload_id,
                     Body=chunk
                 )
-                
+
                 parts.append({
                     'PartNumber': part_number,
                     'ETag': part['ETag']
                 })
-                
-                uploaded_size += len(chunk)
                 part_number += 1
 
-                # Generate more granular progress updates
-                current_progress = min(100, (uploaded_size / total_size) * 100)
-                
-                # Only yield if progress has meaningfully changed
-                if current_progress - last_progress_reported >= 1:
-                    yield {
-                        'progress': current_progress,
-                        'total_parts': part_number - 1,
-                        'total_size': total_size,
-                        'current_part': part_number - 1
-                    }
-                    last_progress_reported = current_progress
+                progress = (uploaded_size / total_size) * 100
+                print(f"S3 Upload Progress: {progress:.2f}%")
+
+                yield {
+                    'progress': progress,
+                    'total_parts': part_number - 1,
+                    'total_size': total_size,
+                }
 
             # Complete multipart upload
             self.s3.complete_multipart_upload(
@@ -139,8 +106,9 @@ class FileService:
                 MultipartUpload={'Parts': parts}
             )
 
-            # Final URL yield
-            url = f"https://{self.bucket}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/uploads/{file.filename}"
+            url = f"https://{self.bucket}.s3.{os.environ.get('AWS_REGION')}.amazonaws.com/uploads/{file.filename}"
+            print(f"Yielding final URL: {url}")
+
             yield {
                 'progress': 100,
                 'total_parts': part_number - 1,
@@ -148,9 +116,9 @@ class FileService:
             }
 
         except Exception as e:
-            import traceback
             traceback.print_exc()
             
+            # Abort multipart upload if it was initiated
             if 'upload_id' in locals():
                 try:
                     self.s3.abort_multipart_upload(
@@ -163,6 +131,18 @@ class FileService:
             
             raise Exception(f"Error uploading large file: {str(e)}")
 
+    async def cancel_upload(self, upload_id: str, filename: str) -> bool:
+        try:
+            # Abort the multipart upload
+            self.s3.abort_multipart_upload(
+                Bucket=self.bucket,
+                Key=f'uploads/{filename}',
+                UploadId=upload_id
+            )
+            return True
+        except Exception as e:
+            print(f"Error cancelling upload: {str(e)}")
+            return False
     async def get_files(self):
         try:
             # Add more detailed logging and error handling
@@ -183,7 +163,7 @@ class FileService:
                         # Additional checks to prevent NoneType errors
                         if obj and 'Key' in obj:
                             try:
-                                url = f"https://{self.bucket}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{obj['Key']}"
+                                url = f"https://{self.bucket}.s3.{os.environ.get('AWS_REGION')}.amazonaws.com/{obj['Key']}"
                                 files.append({
                                     'id': obj.get('Key', 'Unknown'),
                                     'name': obj['Key'].split('/')[-1],
@@ -208,3 +188,27 @@ class FileService:
             # Catch-all for any other unexpected errors
             print(f"Unexpected error in get_files: {str(e)}")
             raise Exception(f"Error fetching files: {str(e)}")
+
+
+    async def download_file(self, key: str):
+        try:
+            # Extract the key from the full S3 URL
+            parsed_url = urlparse(key)
+            s3_key = parsed_url.path.lstrip('/')
+
+            # Create a pre-signed URL for direct download with specific content disposition
+            filename = os.path.basename(s3_key)
+            download_url = self.s3.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': self.bucket,
+                    'Key': s3_key,
+                    'ResponseContentDisposition': f'attachment; filename="{filename}"'
+                },
+                ExpiresIn=3600  # URL valid for 1 hour
+            )
+            
+            return download_url
+        except Exception as e:
+            print(f"Error generating download URL: {str(e)}")
+            raise Exception(f"Error generating download URL: {str(e)}")
