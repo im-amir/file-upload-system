@@ -1,4 +1,4 @@
-import axios, { CancelToken } from "axios";
+import axios from "axios";
 import { UploadedFile } from "../types/file";
 
 export class FileManagerService {
