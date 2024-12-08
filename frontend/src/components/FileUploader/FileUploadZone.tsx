@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Box, Typography } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -25,6 +25,8 @@ const DropzoneContainer = styled(Box)(({ theme }) => ({
 export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
   onFileSelect,
 }) => {
+  // const [dropzoneKey, setDropzoneKey] = useState(0);
+
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       console.log("Accepted files:", acceptedFiles);
@@ -34,8 +36,9 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
 
       if (csvFiles.length > 0) {
         onFileSelect(csvFiles);
+        // Force re-render of dropzone
+        // setDropzoneKey((prev) => prev + 1);
       } else {
-        // Replace alert with toast or other notification
         toast.error("Invalid file type", {
           description: "Only CSV files are allowed",
           id: "file-upload-error-toast",
@@ -56,6 +59,7 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
 
   return (
     <DropzoneContainer
+      // key={dropzoneKey}
       {...getRootProps()}
       sx={{
         borderColor: isDragActive ? "primary.main" : "grey.400",

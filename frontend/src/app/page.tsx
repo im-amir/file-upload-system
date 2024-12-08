@@ -1,7 +1,7 @@
 "use client";
 
 import { Container, Typography, Paper, Grid, Box } from "@mui/material";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useFileUpload } from "@/hooks";
 import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
@@ -67,6 +67,16 @@ export default function Home() {
                 setIsUploading(false);
                 if (fileUrl) {
                   toast.success(`${fileUpload.name} uploaded successfully`);
+                  setUploadedFiles((prevFiles: any) => [
+                    ...prevFiles,
+                    {
+                      name: fileUpload.name,
+                      url: fileUrl,
+                    },
+                  ]);
+                  setTimeout(() => {
+                    removeFile(fileUpload.id);
+                  }, 4000);
                 }
                 setUploadCancellations({});
               }
@@ -87,7 +97,7 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
-  }, [files, updateFileProgress, removeFile]);
+  }, [files, updateFileProgress]);
 
   const handleCancelFile = async (fileId: string) => {
     const cancelMethod = uploadCancellations[fileId];

@@ -88,8 +88,6 @@ export const FileList: React.FC = () => {
     setHasMoreData(true);
   };
 
-  console.log("Files:", files);
-
   return (
     <Box data-testid="file-list">
       <TableContainer component={Paper}>
