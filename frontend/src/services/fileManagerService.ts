@@ -159,19 +159,23 @@ export class FileManagerService {
 
   static async downloadFile(fileUrl: string, fileName: string): Promise<void> {
     try {
-      // Use backend proxy for download
+      // Get pre-signed download URL from backend
       const response = await axios.get(`${this.BASE_URL}/download`, {
         params: { url: fileUrl },
-        responseType: "blob",
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Use the pre-signed URL to download directly
+      const downloadUrl = response.data.downloadUrl;
+      const suggestedFileName = response.data.filename;
+
+      // Create a temporary link and trigger download with specific attributes
       const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", fileName);
+      link.href = downloadUrl;
+      link.setAttribute("download", suggestedFileName || fileName);
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
-      link.remove();
+      document.body.removeChild(link);
     } catch (error) {
       console.error("File download error:", error);
       throw error;

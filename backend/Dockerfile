@@ -7,11 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-
-ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-ENV AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
-ENV AWS_REGION=${AWS_REGION}
+# Remove ENV declarations with variable substitution
+# Environment variables will be passed at runtime via docker-compose
 
 EXPOSE 8000
 

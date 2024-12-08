@@ -3,7 +3,7 @@ import { UploadedFile } from "../types/file";
 import { FileManagerService } from "../services/fileManagerService";
 
 export const useFileManager = () => {
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [files, setFiles] = useState<any>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,13 +31,18 @@ export const useFileManager = () => {
   }, []);
 
   const previewFile = useCallback(
-    async (file: UploadedFile, skip: number = 0, limit: number = 100) => {
+    async (
+      file: Partial<UploadedFile>,
+      skip: number = 0,
+      limit: number = 100
+    ) => {
       try {
         const previewData = await FileManagerService.previewFile(
-          file.url,
+          file.url || "",
           skip,
           limit
         );
+
         return previewData;
       } catch (err) {
         console.error("Preview failed:", err);
@@ -54,6 +59,7 @@ export const useFileManager = () => {
 
   return {
     files,
+    setFiles,
     isLoading,
     error,
     fetchFiles,

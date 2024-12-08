@@ -27,6 +27,7 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
 }) => {
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
+      console.log("Accepted files:", acceptedFiles);
       const csvFiles = acceptedFiles.filter(
         (file) => file.type === "text/csv" || file.name.endsWith(".csv")
       );

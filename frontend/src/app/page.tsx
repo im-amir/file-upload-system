@@ -8,20 +8,22 @@ import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
 import { FileList } from "@/components/FileManager/FileList";
 import { FileManagerService } from "@/services";
 import { FileUploadStatus } from "@/types/file";
+import { useFileManager } from "@/hooks/useFileManager";
 
 export default function Home() {
   const { files, addFiles, removeFile, updateFileProgress } = useFileUpload();
+  const { setFiles: setUploadedFiles } = useFileManager();
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadCancellations, setUploadCancellations] = useState<{
     [fileId: string]: (() => void) | null;
   }>({});
 
   const handleFileSelect = (selectedFiles: File[]) => {
-    console.log("Selected files:", selectedFiles[0]);
+    console.log("Selected files:", selectedFiles);
     const csvFiles = selectedFiles.filter(
       (file) => file.type === "text/csv" || file.name.endsWith(".csv")
     );
-    console.log("CSV files:", csvFiles[0]);
 
     if (csvFiles.length > 0) {
       addFiles(csvFiles);
@@ -30,7 +32,6 @@ export default function Home() {
         id: "file-upload-toast",
       });
     } else {
-      console.log("Invalid file type\n\n\n");
       toast.error("Invalid file type", {
         description: "Only CSV files are allowed",
         id: "file-upload-error-toast",
@@ -107,6 +108,7 @@ export default function Home() {
       removeFile(fileId);
     }
   };
+  console.log("files", files);
 
   return (
     <Box p={4}>
@@ -140,8 +142,8 @@ export default function Home() {
             </Grid>
           </Grid>
 
-          <Box mt={3}>
-            <Typography variant="h2" gutterBottom>
+          <Box mt={5}>
+            <Typography variant="h4" gutterBottom>
               All Files
             </Typography>
             <FileList />
