@@ -50,3 +50,13 @@ This command will:
 - Backend changes will restart the FastAPI server
 - Stopping the Application
 - To stop the running containers:
+
+
+## Testing
+
+To run the cypress tests, you have to 
+```bash
+cd frontend
+npx cypress open
+```
+Make sure you are running the project while performing these tests.
