@@ -10,6 +10,7 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  Box,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
@@ -76,13 +77,13 @@ export const FileList: React.FC = () => {
   };
 
   return (
-    <>
+    <Box data-testid="file-list">
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>File Name</TableCell>
-              <TableCell>Size (KB)</TableCell>
+              <TableCell>Size (MB)</TableCell>
               <TableCell>Upload Date</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -104,16 +105,26 @@ export const FileList: React.FC = () => {
               files.map((file) => (
                 <TableRow key={file.id}>
                   <TableCell>{file.name}</TableCell>
-                  <TableCell>{(file.size / 1024).toFixed(2)}</TableCell>
-                  <TableCell>{file.uploadDate.toLocaleString()}</TableCell>
+                  <TableCell>
+                    {(file.size / (1024 * 1024)).toFixed(2)}
+                  </TableCell>
+                  <TableCell data-testid="upload-date">
+                    {file.uploadDate.toLocaleString()}
+                  </TableCell>
                   <TableCell>
                     <Tooltip title="Download">
-                      <IconButton onClick={() => handleDownload(file)}>
+                      <IconButton
+                        data-testid="download-button"
+                        onClick={() => handleDownload(file)}
+                      >
                         <DownloadIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Preview">
-                      <IconButton onClick={() => handlePreview(file)}>
+                      <IconButton
+                        data-testid="preview-button"
+                        onClick={() => handlePreview(file)}
+                      >
                         <PreviewIcon />
                       </IconButton>
                     </Tooltip>
@@ -132,6 +143,6 @@ export const FileList: React.FC = () => {
         isLoadingMore={isLoadingMore}
         hasMoreData={hasMoreData}
       />
-    </>
+    </Box>
   );
 };

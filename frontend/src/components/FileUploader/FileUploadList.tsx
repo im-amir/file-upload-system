@@ -12,8 +12,6 @@ import {
   Cancel as CancelIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
-  Pause as PauseIcon,
-  PlayArrow as ResumeIcon,
 } from "@mui/icons-material";
 import { FileUpload, FileUploadStatus } from "../../types/file";
 
@@ -38,7 +36,7 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
   };
 
   return (
-    <List>
+    <List data-testid="upload-list">
       {files.map((file) => (
         <ListItem
           key={file.id}
@@ -65,6 +63,7 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <Box sx={{ width: "100%", mr: 1 }}>
                   <LinearProgress
+                    data-testid="progress-bar"
                     variant="determinate"
                     value={file.progress}
                     color={

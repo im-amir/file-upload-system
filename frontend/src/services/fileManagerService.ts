@@ -24,8 +24,8 @@ export class FileManagerService {
   static async uploadFile(
     file: File,
     onProgress?: (progress: number, cancelUploadFn?: any) => void,
-    onComplete?: (fileUrl: string) => void
-  ): Promise<{ fileUrl: string; cancel: () => Promise<void> }> {
+    onComplete?: (fileUrl: string | null) => void
+  ): Promise<{ fileUrl: string }> {
     const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     let uploadId: any;
@@ -34,6 +34,12 @@ export class FileManagerService {
 
     // Initial progress (init stage)
     onProgress?.(0);
+
+    console.log("Uploading file:", {
+      filename: file.name,
+      filesize: file.size,
+      totalChunks: Math.ceil(file.size / (1 * 1024 * 1024)),
+    });
 
     try {
       // Upload init with progress
@@ -86,8 +92,10 @@ export class FileManagerService {
         // Create cancel function
         cancelUploadFn = async () => {
           if (uploadId) {
+            console.log("Cancelling upload...");
             try {
               eventSource?.close();
+              onComplete?.(null);
               await this.cancelUpload(uploadId);
               reject(new Error("Upload cancelled"));
             } catch (error) {
@@ -110,7 +118,6 @@ export class FileManagerService {
                 onComplete?.(data.fileUrl);
                 resolve({
                   fileUrl: data.fileUrl,
-                  cancel: cancelUploadFn,
                 });
               }
             }

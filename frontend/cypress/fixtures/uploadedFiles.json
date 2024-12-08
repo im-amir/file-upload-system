@@ -1,0 +1,11 @@
+{
+  "files": [
+    {
+      "id": "1",
+      "name": "test.csv",
+      "size": 1024,
+      "uploadDate": "2023-01-01T00:00:00.000Z",
+      "url": "http://example.com/test.csv"
+    }
+  ]
+}

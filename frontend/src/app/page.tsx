@@ -1,12 +1,12 @@
 "use client";
 
 import { Container, Typography, Paper, Grid, Box } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { toast, Toaster } from "sonner";
 import { useFileUpload } from "@/hooks";
 import { BaseButton, FileUploadZone, FileUploadList } from "@/components";
 import { FileList } from "@/components/FileManager/FileList";
 import { FileManagerService } from "@/services";
-import axios from "axios";
 import { FileUploadStatus } from "@/types/file";
 
 export default function Home() {
@@ -15,13 +15,36 @@ export default function Home() {
   const [uploadCancellations, setUploadCancellations] = useState<{
     [fileId: string]: (() => void) | null;
   }>({});
+
   const handleFileSelect = (selectedFiles: File[]) => {
-    addFiles(selectedFiles);
+    console.log("Selected files:", selectedFiles[0]);
+    const csvFiles = selectedFiles.filter(
+      (file) => file.type === "text/csv" || file.name.endsWith(".csv")
+    );
+    console.log("CSV files:", csvFiles[0]);
+
+    if (csvFiles.length > 0) {
+      addFiles(csvFiles);
+      toast.success(`Added ${csvFiles.length} CSV file(s)`, {
+        description: csvFiles.map((file) => file.name).join(", "),
+        id: "file-upload-toast",
+      });
+    } else {
+      console.log("Invalid file type\n\n\n");
+      toast.error("Invalid file type", {
+        description: "Only CSV files are allowed",
+        id: "file-upload-error-toast",
+      });
+    }
   };
-  console.log("cancl", uploadCancellations);
 
   const handleUpload = useCallback(async () => {
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      toast.error("No files to upload", {
+        description: "Please select CSV files first",
+      });
+      return;
+    }
 
     setIsUploading(true);
     const newCancellations: { [fileId: string]: (() => Promise<void>) | null } =
@@ -35,27 +58,31 @@ export default function Home() {
             const { fileUrl } = await FileManagerService.uploadFile(
               fileUpload.file,
               (progress, cancel) => {
-                console.log("cancel here:", cancel);
                 newCancellations[fileUpload.id] = cancel;
                 setUploadCancellations(newCancellations);
                 updateFileProgress(fileUpload.id, progress);
               },
-              (fileUrl) => console.log("File uploaded:", fileUrl)
+              (fileUrl: string | null) => {
+                setIsUploading(false);
+                if (fileUrl) {
+                  toast.success(`${fileUpload.name} uploaded successfully`);
+                }
+                setUploadCancellations({});
+              }
             );
 
             return fileUrl;
           } catch (error) {
-            if (axios.isCancel(error)) {
-              await FileManagerService.cancelUpload(fileUpload.uploadId);
-              removeFile(fileUpload.id);
-            }
-            throw error;
+            console.log(error);
           }
         });
 
       await Promise.all(uploadPromises);
-    } catch (error) {
-      console.error("Upload failed", error);
+    } catch (error: any) {
+      toast.error("Upload failed", {
+        description: "Some files could not be uploaded",
+      });
+      console.log(error);
     } finally {
       setIsUploading(false);
     }
@@ -63,23 +90,29 @@ export default function Home() {
 
   const handleCancelFile = async (fileId: string) => {
     const cancelMethod = uploadCancellations[fileId];
-    console.log(cancelMethod);
+    const fileToCancel = files.find((f) => f.id === fileId);
+
     if (cancelMethod) {
       try {
+        toast.info(`Upload cancelled for ${fileToCancel?.name}`);
+        removeFile(fileId);
+
         await cancelMethod();
-        // removeFile(fileId);
       } catch (error) {
-        console.error(`Error cancelling file ${fileId}:`, error);
+        toast.error(`Error cancelling file upload`, {
+          description: error instanceof Error ? error.message : String(error),
+        });
       }
     } else {
-      // removeFile(fileId);
+      removeFile(fileId);
     }
   };
 
   return (
     <Box p={4}>
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 3 }}>
+      <Toaster position="top-right" richColors closeButton />
+      <Paper elevation={3} sx={{ p: 3, width: "70%", margin: "auto" }}>
+        <Container maxWidth="md" sx={{ mt: 4 }}>
           <Typography variant="h4" gutterBottom align="center">
             CSV File Uploader
           </Typography>
@@ -97,6 +130,7 @@ export default function Home() {
 
             <Grid item xs={12} sx={{ textAlign: "center" }}>
               <BaseButton
+                testId="upload-button"
                 onClick={handleUpload}
                 disabled={files.length === 0 || isUploading}
                 color="primary"
@@ -105,12 +139,15 @@ export default function Home() {
               </BaseButton>
             </Grid>
           </Grid>
-        </Paper>
 
-        <Box mt={3}>
-          <FileList />
-        </Box>
-      </Container>
+          <Box mt={3}>
+            <Typography variant="h2" gutterBottom>
+              All Files
+            </Typography>
+            <FileList />
+          </Box>
+        </Container>
+      </Paper>
     </Box>
   );
 }
