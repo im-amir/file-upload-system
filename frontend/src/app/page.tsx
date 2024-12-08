@@ -76,7 +76,7 @@ export default function Home() {
                   ]);
                   setTimeout(() => {
                     removeFile(fileUpload.id);
-                  }, 4000);
+                  }, 2000);
                 }
                 setUploadCancellations({});
               }

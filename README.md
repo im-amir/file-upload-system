@@ -30,6 +30,17 @@ A full-stack application for uploading and managing CSV files with progress trac
 ```bash
 git clone https://github.com/yourusername/file-upload-system.git
 cd file-upload-system
+```
+create .env file in the root
+```bash
+AWS_ACCESS_KEY_ID=######
+AWS_SECRET_ACCESS_KEY=######
+AWS_BUCKET_NAME=######
+AWS_REGION=######
+
+```
+
+```
 docker-compose up --build
 ```
 

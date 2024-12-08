@@ -1,26 +1,13 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Box, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import { styled } from "@mui/material/styles";
 import { toast } from "sonner";
+import { DropzoneContainer } from "@/components/FileUploader/elements";
 
 interface FileUploadZoneProps {
   onFileSelect: (files: File[]) => void;
 }
-
-const DropzoneContainer = styled(Box)(({ theme }) => ({
-  border: `2px dashed ${theme.palette.primary.main}`,
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(4),
-  textAlign: "center",
-  cursor: "pointer",
-  transition: "background-color 0.3s ease",
-  position: "relative", // Add relative positioning
-  "&:hover": {
-    backgroundColor: theme.palette.action.hover,
-  },
-}));
 
 export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
   onFileSelect,
