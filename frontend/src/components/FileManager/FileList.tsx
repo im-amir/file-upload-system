@@ -19,6 +19,7 @@ import {
 import { UploadedFile } from "../../types/file";
 import { useFileManager } from "../../hooks/useFileManager";
 import { FilePreviewDialog } from "./FilePreviewDialog";
+import { toast } from "sonner";
 
 export const FileList: React.FC = () => {
   const { files, downloadFile, previewFile, isLoading } = useFileManager();
@@ -30,29 +31,34 @@ export const FileList: React.FC = () => {
   const [previewSkip, setPreviewSkip] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<Partial<UploadedFile>>({});
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   const handleDownload = (file: UploadedFile) => {
     downloadFile(file);
   };
 
   const handlePreview = async (file: UploadedFile) => {
+    setSelectedFile(file);
+    setIsLoadingPreview(true);
     setPreviewSkip(0);
     setHasMoreData(true);
+    toast.info("Loading preview...");
     const content = await previewFile(file);
     if (content) {
       setPreviewData(content);
       setHasMoreData(content.rows.length === 100);
     }
+    setIsLoadingPreview(false);
   };
 
   const handleLoadMore = async () => {
     if (previewData && hasMoreData) {
       setIsLoadingMore(true);
-      const file = files.find((f) => f.url === previewData.rows[0]?.url);
 
-      if (file) {
+      try {
         const nextSkip = previewSkip + 100;
-        const moreContent = await previewFile(file, nextSkip, 100);
+        const moreContent = await previewFile(selectedFile, nextSkip, 100);
 
         if (moreContent && moreContent.rows.length > 0) {
           setPreviewData({
@@ -60,13 +66,19 @@ export const FileList: React.FC = () => {
             rows: [...previewData.rows, ...moreContent.rows],
             total_rows: moreContent.total_rows,
           });
+
           setPreviewSkip(nextSkip);
           setHasMoreData(moreContent.rows.length === 100);
         } else {
+          // No file URL available
           setHasMoreData(false);
         }
+      } catch (error) {
+        console.error("Error loading more data:", error);
+        setHasMoreData(false);
+      } finally {
+        setIsLoadingMore(false);
       }
-      setIsLoadingMore(false);
     }
   };
 
@@ -75,6 +87,8 @@ export const FileList: React.FC = () => {
     setPreviewSkip(0);
     setHasMoreData(true);
   };
+
+  console.log("Files:", files);
 
   return (
     <Box data-testid="file-list">
@@ -102,7 +116,7 @@ export const FileList: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              files.map((file) => (
+              files.map((file: any) => (
                 <TableRow key={file.id}>
                   <TableCell>{file.name}</TableCell>
                   <TableCell>
@@ -116,6 +130,7 @@ export const FileList: React.FC = () => {
                       <IconButton
                         data-testid="download-button"
                         onClick={() => handleDownload(file)}
+                        disabled={isLoadingPreview}
                       >
                         <DownloadIcon />
                       </IconButton>
@@ -124,6 +139,7 @@ export const FileList: React.FC = () => {
                       <IconButton
                         data-testid="preview-button"
                         onClick={() => handlePreview(file)}
+                        disabled={isLoadingPreview}
                       >
                         <PreviewIcon />
                       </IconButton>

@@ -3,6 +3,7 @@ from fastapi import UploadFile
 import os
 import io
 import math
+from urllib.parse import urlparse  # Add this line
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from app.services.upload_progress import UPLOAD_PROGRESS
@@ -15,14 +16,15 @@ S3_SIZE_LIMIT = 5 * 1024 * 1024  # 5MB
 
 class FileService:
     def __init__(self):
+        print('Initializing FileService', os.environ.get('AWS_ACCESS_KEY_ID')) 
         self.s3 = boto3.client(
             's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION'),
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.environ.get('AWS_REGION'),
             config=boto3.session.Config(s3={'use_accelerate_endpoint': True})
         )
-        self.bucket = os.getenv('AWS_BUCKET_NAME')
+        self.bucket = os.environ.get('AWS_BUCKET_NAME')
         self.upload_states = {}  # Track upload states
 
     async def upload_file(self, file: UploadFile, upload_id: str = None) -> AsyncGenerator:
@@ -45,7 +47,7 @@ class FileService:
                     ExtraArgs={'ContentType': 'text/csv'}
                 )
                 
-                url = f"https://{self.bucket}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{key}"
+                url = f"https://{self.bucket}.s3.{os.environ.get('AWS_REGION')}.amazonaws.com/{key}"
                 
                 yield {
                     'progress': 100,
@@ -104,7 +106,7 @@ class FileService:
                 MultipartUpload={'Parts': parts}
             )
 
-            url = f"https://{self.bucket}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/uploads/{file.filename}"
+            url = f"https://{self.bucket}.s3.{os.environ.get('AWS_REGION')}.amazonaws.com/uploads/{file.filename}"
             print(f"Yielding final URL: {url}")
 
             yield {
@@ -161,7 +163,7 @@ class FileService:
                         # Additional checks to prevent NoneType errors
                         if obj and 'Key' in obj:
                             try:
-                                url = f"https://{self.bucket}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{obj['Key']}"
+                                url = f"https://{self.bucket}.s3.{os.environ.get('AWS_REGION')}.amazonaws.com/{obj['Key']}"
                                 files.append({
                                     'id': obj.get('Key', 'Unknown'),
                                     'name': obj['Key'].split('/')[-1],
@@ -186,3 +188,27 @@ class FileService:
             # Catch-all for any other unexpected errors
             print(f"Unexpected error in get_files: {str(e)}")
             raise Exception(f"Error fetching files: {str(e)}")
+
+
+    async def download_file(self, key: str):
+        try:
+            # Extract the key from the full S3 URL
+            parsed_url = urlparse(key)
+            s3_key = parsed_url.path.lstrip('/')
+
+            # Create a pre-signed URL for direct download with specific content disposition
+            filename = os.path.basename(s3_key)
+            download_url = self.s3.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': self.bucket,
+                    'Key': s3_key,
+                    'ResponseContentDisposition': f'attachment; filename="{filename}"'
+                },
+                ExpiresIn=3600  # URL valid for 1 hour
+            )
+            
+            return download_url
+        except Exception as e:
+            print(f"Error generating download URL: {str(e)}")
+            raise Exception(f"Error generating download URL: {str(e)}")

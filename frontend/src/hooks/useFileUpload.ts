@@ -7,6 +7,7 @@ export const useFileUpload = () => {
   const [uploadCancelTokens, setUploadCancelTokens] = useState<any>({});
 
   const addFiles = useCallback((newFiles: File[]) => {
+    console.log("Adding files:", newFiles);
     const validFiles = newFiles.filter(
       (file) => file.type === "text/csv" || file.name.endsWith(".csv")
     );

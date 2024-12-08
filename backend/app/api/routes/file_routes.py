@@ -10,6 +10,8 @@ import json
 import os
 import io
 from app.services.upload_progress import UPLOAD_PROGRESS
+from urllib.parse import urlparse
+
 
 router = APIRouter()
 file_service = FileService()
@@ -21,11 +23,6 @@ async def init_upload(
     totalChunks: int = Query(...)
 ):
     upload_id = str(uuid.uuid4())
-    UPLOAD_PROGRESS[upload_id] = {
-        'filename': filename,
-        'filesize': filesize,
-        'totalChunks': totalChunks
-    }
     return {"uploadId": upload_id}
 
 @router.post("/upload/chunk")
@@ -50,23 +47,6 @@ async def upload_chunk(
         "message": "Chunk uploaded successfully",
         "chunkIndex": chunkIndex
     }
-
-@router.post("/upload/cancel")
-async def cancel_upload(uploadId: str):
-    print("UPLOAD PROGRESS ISSSS",UPLOAD_PROGRESS)
-    upload_info = UPLOAD_PROGRESS.get(uploadId)
-    if not upload_info:
-        raise HTTPException(status_code=404, detail="Upload not found")
-    
-    filename = upload_info['filename']
-    file_service = FileService()
-    
-    try:
-        success = await file_service.cancel_upload(uploadId, filename)
-        del UPLOAD_PROGRESS[uploadId]
-        return {"success": success}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/upload/finalize")
 async def finalize_upload(uploadId: str = Query(...), filename: str = Query(...)):
@@ -181,7 +161,6 @@ async def get_files():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.get("/preview")
 async def preview_file(
     url: str = Query(...), 
@@ -189,62 +168,64 @@ async def preview_file(
     limit: int = Query(100, ge=1, le=1000)
 ):
     try:
-        # Use streaming approach with requests
-        response = requests.get(url, stream=True)
-        
-        if response.status_code != 200:
-            raise HTTPException(status_code=404, detail="File not found")
-        
-        # Use a generator to read file in chunks
-        def csv_chunk_reader(response, skip, limit):
-            # Convert response content to a string IO
-            content = io.StringIO(response.text)
-            
-            # Use pandas to read CSV in chunks
-            df_iterator = pd.read_csv(
-                content, 
-                skiprows=skip, 
-                chunksize=limit
+        parsed_url = urlparse(url)
+        s3_key = parsed_url.path.lstrip('/')
+
+        try:
+            s3_object = file_service.s3.get_object(
+                Bucket=file_service.bucket, 
+                Key=s3_key
             )
             
-            # Get the first chunk
-            try:
-                df = next(df_iterator)
+            # Read the body of the S3 object
+            body = s3_object['Body'].read().decode('utf-8')
+            
+            # Use a generator to read file in chunks
+            def csv_chunk_reader(content, skip, limit):
+                # Convert content to a string IO
+                content_io = io.StringIO(content)
+                
+                # Read the entire DataFrame
+                df = pd.read_csv(content_io)
+                
+                # Apply skip and limit
+                start = skip
+                end = skip + limit
+                
+                # Slice the DataFrame
+                sliced_df = df.iloc[start:end]
+                
+                # If it's the first request, return headers
                 return {
                     "headers": list(df.columns),
-                    "rows": df.to_dict(orient="records"),
+                    "rows": sliced_df.to_dict(orient="records"),
                     "total_rows": len(df)
                 }
-            except StopIteration:
-                return {
-                    "headers": [],
-                    "rows": [],
-                    "total_rows": 0
-                }
+            
+            # Process the chunk
+            preview_data = csv_chunk_reader(body, skip, limit)
+            
+            return preview_data
         
-        # Process the chunk
-        preview_data = csv_chunk_reader(response, skip, limit)
+        except file_service.s3.exceptions.NoSuchKey:
+            raise HTTPException(status_code=404, detail="File not found in S3")
         
-        return preview_data
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error previewing file: {str(e)}")
 
 @router.get("/download")
 async def download_file(url: str = Query(...)):
     try:
-        response = requests.get(url)
+        # Use file_service to generate pre-signed URL
+        download_url = await file_service.download_file(url)
         
-        if response.status_code != 200:
-            raise HTTPException(status_code=404, detail="File not found")
+        # Extract filename from the original URL
+        filename = url.split('/')[-1]
         
-        return StreamingResponse(
-            response.iter_content(chunk_size=8192), 
-            media_type='application/octet-stream',
-            headers={
-                "Content-Disposition": f"attachment; filename={url.split('/')[-1]}"
-            }
-        )
+        return {
+            "downloadUrl": download_url,
+            "filename": filename
+        }
     except Exception as e:
-        print(f"Error downloading file: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
+        print(f"Error preparing download: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error preparing download: {str(e)}")

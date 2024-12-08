@@ -58,7 +58,7 @@ export const FileUploadList: React.FC<FileUploadListProps> = ({
             <Box sx={{ width: "100%", mr: 1 }}>
               <ListItemText
                 primary={file.name}
-                secondary={`${(file.size / 1024).toFixed(2)} KB`}
+                secondary={`${(file.size / (1024 * 1024)).toFixed(2)} MB`}
               />
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 <Box sx={{ width: "100%", mr: 1 }}>
